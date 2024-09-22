@@ -23,19 +23,9 @@ resource "aws_subnet" "public_subnet_2" {
   }
 }
 
-resource "aws_subnet" "public_subnet_3" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.3.0/24"
-  availability_zone = "ca-central-1d"
-
-  tags = {                                                                                         Name = "publicSubnet3"
-  }     
-}
-
-
 resource "aws_subnet" "private_subnet_1" {
   vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.4.0/24"
+  cidr_block    = "10.0.3.0/24"
   availability_zone = "ca-central-1a"
 
   tags = {
@@ -45,19 +35,10 @@ resource "aws_subnet" "private_subnet_1" {
 
 resource "aws_subnet" "private_subnet_2" {
   vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.5.0/24"
+  cidr_block    = "10.0.4.0/24"
   availability_zone = "ca-central-1b"
 
   tags = {                                                                                         Name = "privateSubnet2"
-  }
-}
-
-resource "aws_subnet" "private_subnet_3" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.6.0/24"
-  availability_zone = "ca-central-1d"
-
-  tags = {                                                                                         Name = "privateSubnet3"
   }
 }
 
@@ -96,11 +77,6 @@ resource "aws_route_table_association" "private_subnet_2_association" {
   route_table_id = aws_route_table.private_route_table.id
 }
 
-resource "aws_route_table_association" "private_subnet_3_association" {
-  subnet_id      = aws_subnet.private_subnet_3.id
-  route_table_id = aws_route_table.private_route_table.id
-}
-
 # Associate the public subnets with the custom route table
 resource "aws_route_table_association" "public_subnet_1_association" {
   subnet_id      = aws_subnet.public_subnet_1.id
@@ -112,11 +88,6 @@ resource "aws_route_table_association" "public_subnet_2_association" {
   route_table_id = aws_route_table.public_route_table.id
 }
 
-resource "aws_route_table_association" "public_subnet_3_association" {
-  subnet_id      = aws_subnet.public_subnet_3.id
-  route_table_id = aws_route_table.public_route_table.id
-}
-    
 resource "aws_instance" "web_server" {
   ami           = "ami-0208b77a23d891325"  # Replace with a valid AMI ID
   instance_type = "t2.micro"
