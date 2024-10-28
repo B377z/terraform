@@ -5,9 +5,9 @@ provider "aws" {
 
 # Create 2 more public subnets in the VPC
 resource "aws_subnet" "public_subnet_1" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.1.0/24"
-  availability_zone = "ca-central-1a"
+  vpc_id        = var.vpc_id
+  cidr_block    = var.public_subnet_cidrs[0]
+  availability_zone = var.availability_zone[0]
 
   tags = {
     Name = "publicSubnet1"
@@ -15,18 +15,20 @@ resource "aws_subnet" "public_subnet_1" {
 }
 
 resource "aws_subnet" "public_subnet_2" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.2.0/24"
-  availability_zone = "ca-central-1b"
+  vpc_id        = var.vpc_id
+  cidr_block    = var.public_subnet_cidrs[1]
+  availability_zone = var.availability_zone[1]
 
-  tags = {                                                                                         Name = "publicSubnet2"
+  tags = {
+    Name = "publicSubnet2"
   }
 }
 
+# Create 2 private subnets in the VPC
 resource "aws_subnet" "private_subnet_1" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.3.0/24"
-  availability_zone = "ca-central-1a"
+  vpc_id            = var.vpc_id
+  cidr_block        = var.private_subnet_cidrs[0]  # Use the first private CIDR block
+  availability_zone = var.availability_zone[0]
 
   tags = {
     Name = "privateSubnet1"
@@ -34,22 +36,23 @@ resource "aws_subnet" "private_subnet_1" {
 }
 
 resource "aws_subnet" "private_subnet_2" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
-  cidr_block    = "10.0.4.0/24"
-  availability_zone = "ca-central-1b"
+  vpc_id            = var.vpc_id
+  cidr_block        = var.private_subnet_cidrs[1]  # Use the second private CIDR block
+  availability_zone = var.availability_zone[1]
 
-  tags = {                                                                                         Name = "privateSubnet2"
+  tags = {
+    Name = "privateSubnet2"
   }
 }
 
 # Create public route table
 resource "aws_route_table" "public_route_table" {
-  vpc_id        = "vpc-06fd63ceb391a236d"
+  vpc_id = var.vpc_id
 
   # Route all traffic to Internet gateway
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = "igw-00e5c0a677918ad8e"
+    gateway_id = var.internet_gateway_id  # Use the variable for the Internet Gateway ID
   }
 
   tags = {
@@ -59,7 +62,7 @@ resource "aws_route_table" "public_route_table" {
 
 # Create a custom route table for private subnets (no internet access)
 resource "aws_route_table" "private_route_table" {
-  vpc_id = "vpc-06fd63ceb391a236d"  # Use your VPC ID
+  vpc_id = var.vpc_id
 
   tags = {
     Name = "tfd-priv-rt"
@@ -77,7 +80,7 @@ resource "aws_route_table_association" "private_subnet_2_association" {
   route_table_id = aws_route_table.private_route_table.id
 }
 
-# Associate the public subnets with the custom route table
+# Associate the public subnets with the public route table
 resource "aws_route_table_association" "public_subnet_1_association" {
   subnet_id      = aws_subnet.public_subnet_1.id
   route_table_id = aws_route_table.public_route_table.id
@@ -88,43 +91,49 @@ resource "aws_route_table_association" "public_subnet_2_association" {
   route_table_id = aws_route_table.public_route_table.id
 }
 
+resource "aws_security_group" "web_sg" {
+  name        = "web-sg"
+  description = "Allow HTTP traffic"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "Allow traffic on the web server port"
+    from_port   = var.server_port
+    to_port     = var.server_port
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "web-sg"
+  }
+}
+
 resource "aws_instance" "web_server" {
-  ami           = "ami-0208b77a23d891325"  # Replace with a valid AMI ID
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.public_subnet_1.id  # Use your public subnet
-
-  # Associate the instance with an existing security group using the security group ID
-  vpc_security_group_ids = ["sg-0e3ff8f5108fcb7ae"]  # Replace with your Security Group ID
-
-  # Ensure the instance gets a public IP
+  ami                    = "ami-0208b77a23d891325"  # You can also make this an input variable if needed
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.public_subnet_1.id
+  vpc_security_group_ids = [var.security_group_id]
   associate_public_ip_address = true
+  key_name               = var.key_pair_name
 
-  # Use the key pair name for SSH access
-  key_name = "terraformkeypair1909"  # Name of the key pair in AWS
-
-  # Add the user data script to install httpd and create an HTML file
+  # User data script for the web server
   user_data = <<-EOF
     #!/bin/bash
-    # Update the package repository
-    yum update -y
-
-    # Install Apache HTTPD
-    yum install -y httpd
-
-    # Start the HTTPD service
-    systemctl start httpd
-    systemctl enable httpd
-
-    # Create the index.html file with the custom message
-    echo "Welcome to tfd'82" > /var/www/html/index.html
-
-    # Ensure proper permissions
-    chown apache:apache /var/www/html/index.html
-    chmod 644 /var/www/html/index.html
+    # Install BusyBox
+    sudo yum install -y busybox
+    echo "<h1>Welcome to tfd'82</h1>" > index.html
+    nohup busybox httpd -f -p 8080 &
   EOF
 
   tags = {
     Name = "servera"
   }
 }
-
