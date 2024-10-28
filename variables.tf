@@ -38,3 +38,10 @@ variable "server_port" {
   description = "The port on which the web servers will listen"
   default     = 8080
 }
+
+variable "AWS_SECRET_ACCESS_KEY" {
+  description = "The secret access key for AWS"
+  type        = string
+  sensitive   = true  # Mark this as sensitive to avoid logging it
+}
+
